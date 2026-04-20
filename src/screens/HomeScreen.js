@@ -330,9 +330,12 @@ const SpeciesCard = ({ name, price, change, icon, isNeg, unit }) => (
   </View>
 );
 
-const TradeRow = ({ time, item, price, qty }) => (
+const TradeRow = ({ date, time, item, price, qty }) => (
   <View style={styles.tradeRow}>
-    <Text style={styles.tradeTime}>{time}</Text>
+    <View style={styles.tradeMeta}>
+      <Text style={styles.tradeDate}>{date}</Text>
+      <Text style={styles.tradeTime}>{time}</Text>
+    </View>
     <Text style={styles.tradeInfo}>{item} @ <Text style={styles.tradePrice}>₱{price}</Text></Text>
     <Text style={styles.tradeQty}>({qty})</Text>
   </View>
@@ -763,10 +766,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
+  tradeMeta: {
+    width: 65,
+    marginRight: 10,
+  },
+  tradeDate: {
+    color: THEME.colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
   tradeTime: {
     color: THEME.colors.textSecondary,
-    fontSize: 12,
-    width: 50,
+    fontSize: 11,
+    opacity: 0.7,
   },
   tradeInfo: {
     color: '#FFF',
