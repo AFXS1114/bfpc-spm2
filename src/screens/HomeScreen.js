@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { supabase } from '../lib/supabase';
 import dayjs from 'dayjs';
+import Modal from 'react-native-modal';
+import { Calendar } from 'react-native-calendars';
 
 const { width } = Dimensions.get('window');
 
@@ -22,10 +24,15 @@ export default function HomeScreen({ navigation }) {
   const [transactions, setTransactions] = useState([]);
   const [trendData, setTrendData] = useState({ labels: [], datasets: [{ data: [] }] });
   const [loading, setLoading] = useState(true);
+  const [timeframe, setTimeframe] = useState('today'); // 'today', '7d', 'custom'
+  const [isCalendarVisible, setIsCalendarVisible] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
 
   useEffect(() => {
     fetchData();
+  }, [timeframe, selectedDate]);
 
+  useEffect(() => {
     const speciesChannel = supabase
       .channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'species' }, (payload) => {
@@ -41,17 +48,30 @@ export default function HomeScreen({ navigation }) {
     };
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (currentFrame = timeframe, targetDate = selectedDate) => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = dayjs().format('YYYY-MM-DD');
+      const speciesRef = supabase.from('species').select('*').order('name');
+      const recentTransRef = supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(6);
+
+      let trendQuery = supabase.from('transactions')
+        .select('manual_date, manual_time, price_per_unit')
+        .ilike('species_name', '%lawlaw%')
+        .order('manual_date').order('manual_time');
+
+      if (currentFrame === 'today') {
+        trendQuery = trendQuery.eq('manual_date', today);
+      } else if (currentFrame === '7d') {
+        const last7Days = dayjs().subtract(7, 'day').format('YYYY-MM-DD');
+        trendQuery = trendQuery.gte('manual_date', last7Days);
+      } else if (currentFrame === 'custom') {
+        trendQuery = trendQuery.eq('manual_date', targetDate);
+      }
+
       const [speciesRes, transRes, trendRes] = await Promise.all([
-        supabase.from('species').select('*').order('name'),
-        supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(6),
-        supabase.from('transactions')
-          .select('manual_time, price_per_unit')
-          .eq('manual_date', today)
-          .ilike('species_name', '%lawlaw%')
-          .order('manual_time')
+        speciesRef,
+        recentTransRef,
+        trendQuery
       ]);
 
       if (speciesRes.error) throw speciesRes.error;
@@ -62,25 +82,53 @@ export default function HomeScreen({ navigation }) {
 
       // Process Trend Data
       if (trendRes.data && trendRes.data.length > 0) {
-        const labels = trendRes.data.map(t => t.manual_time.slice(0, 5));
-        const data = trendRes.data.map(t => t.price_per_unit);
+        let labels = [];
+        let data = [];
+
+        if (currentFrame === '7d') {
+          // Aggregate by Day
+          const dailyAvg = trendRes.data.reduce((acc, curr) => {
+            const d = dayjs(curr.manual_date).format('MMM DD');
+            if (!acc[d]) acc[d] = { sum: 0, count: 0 };
+            acc[d].sum += curr.price_per_unit;
+            acc[d].count += 1;
+            return acc;
+          }, {});
+
+          labels = Object.keys(dailyAvg);
+          data = labels.map(l => Math.round(dailyAvg[l].sum / dailyAvg[l].count));
+        } else {
+          // Hourly view (Today or Custom Day)
+          labels = trendRes.data.map(t => t.manual_time.slice(0, 5));
+          data = trendRes.data.map(t => t.price_per_unit);
+        }
+
         setTrendData({
           labels,
-          datasets: [{ data, color: (opacity = 1) => `rgba(47, 212, 110, ${opacity})`, strokeWidth: 2 }]
+          datasets: [{
+            data,
+            color: (opacity = 1) => `rgba(47, 212, 110, ${opacity})`,
+            strokeWidth: 2
+          }]
         });
       } else {
-        // Mock data if no real records today
+        // Mock/Empty data
         setTrendData({
-          labels: ["04:00", "06:00", "08:00", "10:00"],
-          datasets: [{ data: [2800, 2600, 3100, 2900], color: (opacity = 1) => `rgba(47, 212, 110, 0.5)`, strokeWidth: 2 }]
+          labels: ["No Data"],
+          datasets: [{ data: [0], color: (opacity = 1) => `rgba(255, 255, 255, 0.1)`, strokeWidth: 2 }]
         });
       }
     } catch (error) {
       console.error('Error fetching Home data:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, [timeframe, selectedDate]);
 
   const highlightedFish = species.find(s => s.name.toLowerCase().includes('lawlaw')) || species[0];
 
@@ -112,8 +160,8 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.locationGroup}>
           <Ionicons name="location-sharp" size={20} color={THEME.colors.accent} />
           <View style={styles.locationTextContainer}>
-            <Text style={styles.locationCity}>Bulan, Bicol</Text>
-            <Text style={styles.locationLabel}>Main Port</Text>
+            <Text style={styles.locationCity}>Bulan, Sorsogon</Text>
+            <Text style={styles.locationLabel}>BULAN FISH PORT COMPLEX</Text>
           </View>
         </View>
 
@@ -207,9 +255,25 @@ export default function HomeScreen({ navigation }) {
         {/* Tamban Price Performance Chart */}
         <View style={styles.chartSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Tamban Price Performance</Text>
-            <View style={styles.liveBadge}>
-              <Text style={styles.liveBadgeText}>PER HOUR</Text>
+            <Text style={styles.sectionTitle}>Tamban Price Trend</Text>
+            <View style={styles.timeframeRow}>
+              {['today', '7d', 'custom'].map((f) => (
+                <TouchableOpacity
+                  key={f}
+                  onPress={() => f === 'custom' ? setIsCalendarVisible(true) : setTimeframe(f)}
+                  style={[
+                    styles.timeframeChip,
+                    (timeframe === f || (f === 'custom' && timeframe === 'custom')) && styles.timeframeChipActive
+                  ]}
+                >
+                  <Text style={[
+                    styles.timeframeText,
+                    (timeframe === f || (f === 'custom' && timeframe === 'custom')) && styles.timeframeTextActive
+                  ]}>
+                    {f === 'today' ? 'Today' : f === '7d' ? '7 Days' : dayjs(selectedDate).format('MMM DD')}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
           <View style={styles.chartCard}>
@@ -251,6 +315,40 @@ export default function HomeScreen({ navigation }) {
         </View>
 
       </ScrollView>
+
+      {/* Date Picker Modal */}
+      <Modal
+        isVisible={isCalendarVisible}
+        onBackdropPress={() => setIsCalendarVisible(false)}
+        style={styles.modal}
+      >
+        <View style={styles.calendarContainer}>
+          <Text style={styles.modalTitle}>Select Transaction Date</Text>
+          <Calendar
+            theme={{
+              backgroundColor: THEME.colors.bgCard,
+              calendarBackground: THEME.colors.bgCard,
+              textSectionTitleColor: THEME.colors.accent,
+              selectedDayBackgroundColor: THEME.colors.accent,
+              selectedDayTextColor: '#000',
+              todayTextColor: THEME.colors.gold,
+              dayTextColor: '#FFF',
+              textDisabledColor: '#555',
+              dotColor: THEME.colors.accent,
+              monthTextColor: '#FFF',
+              indicatorColor: THEME.colors.accent,
+            }}
+            onDayPress={(day) => {
+              setSelectedDate(day.dateString);
+              setTimeframe('custom');
+              setIsCalendarVisible(false);
+            }}
+            markedDates={{
+              [selectedDate]: { selected: true }
+            }}
+          />
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -714,6 +812,31 @@ const styles = StyleSheet.create({
   chartSection: {
     marginBottom: 30,
   },
+  timeframeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  timeframeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  timeframeChipActive: {
+    backgroundColor: 'rgba(47, 212, 198, 0.1)',
+    borderColor: 'rgba(47, 212, 198, 0.2)',
+  },
+  timeframeText: {
+    color: THEME.colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  timeframeTextActive: {
+    color: THEME.colors.accent,
+  },
   liveBadge: {
     backgroundColor: 'rgba(47, 212, 198, 0.1)',
     paddingHorizontal: 8,
@@ -798,5 +921,25 @@ const styles = StyleSheet.create({
     color: THEME.colors.textSecondary,
     textAlign: 'center',
     paddingVertical: 20,
+  },
+  modal: {
+    justifyContent: 'flex-end',
+    margin: 0,
+  },
+  calendarContainer: {
+    backgroundColor: THEME.colors.bgCard,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 40,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  modalTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 15,
+    textAlign: 'center',
   },
 });

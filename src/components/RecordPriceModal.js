@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '../theme/theme';
 import { useRecordPrice } from '../context/RecordPriceContext';
 import { supabase } from '../lib/supabase';
+import dayjs from 'dayjs';
 
 export default function RecordPriceModal() {
   const { isModalVisible, hideModal } = useRecordPrice();
@@ -57,8 +58,9 @@ export default function RecordPriceModal() {
       // Prepare the data
       // Combine date and time for a single timestamp if needed, 
       // but the user's schema suggestion has separate date/time columns.
-      const formattedDate = date.toISOString().split('T')[0];
-      const formattedTime = time.toTimeString().split(' ')[0];
+      // Use local time formatting via dayjs instead of .toISOString() to avoid UTC offsets
+      const formattedDate = dayjs(date).format('YYYY-MM-DD');
+      const formattedTime = dayjs(time).format('HH:mm:ss');
 
       const { data, error } = await supabase
         .from('transactions')
