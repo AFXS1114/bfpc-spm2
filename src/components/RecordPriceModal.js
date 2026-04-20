@@ -24,8 +24,8 @@ export default function RecordPriceModal() {
   // Form State
   const [specie, setSpecie] = useState('');
   const [price, setPrice] = useState('');
-  const [volume, setVolume] = useState('');
-  const [unit, setUnit] = useState('Kilogram'); // Default as requested
+  const [volume, setVolume] = useState('1');
+  const [unit, setUnit] = useState('Tub'); 
   const [date, setDate] = useState(new Date());
   const [time, setTime] = useState(new Date());
 
@@ -33,9 +33,55 @@ export default function RecordPriceModal() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [allSpecies, setAllSpecies] = useState([]);
+  const [filteredSpecies, setFilteredSpecies] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Options
   const units = ['Kilogram', 'Tub', 'Box'];
+
+  useEffect(() => {
+    loadSpecies();
+  }, []);
+
+  useEffect(() => {
+    if (isModalVisible) {
+      loadSpecies();
+    }
+  }, [isModalVisible]);
+
+  const loadSpecies = async () => {
+    try {
+      const { data, error } = await supabase.from('species').select('local_name').order('local_name');
+      if (error) throw error;
+      setAllSpecies(data || []);
+    } catch (err) {
+      console.error('Error loading species:', err);
+    }
+  };
+
+  const handleSpecieSearch = (text) => {
+    setSpecie(text);
+    if (text.length > 0) {
+      // If library is empty, try one last refetch
+      if (allSpecies.length === 0) loadSpecies();
+      
+      const filtered = allSpecies.filter(s => 
+        s.local_name && s.local_name.toLowerCase().includes(text.toLowerCase())
+      );
+      setFilteredSpecies(filtered);
+      setIsSearching(true);
+    } else {
+      setFilteredSpecies([]);
+      setIsSearching(false);
+    }
+  };
+
+  const selectSpecie = (name) => {
+    setSpecie(name);
+    setFilteredSpecies([]);
+    setIsSearching(false);
+  };
 
   const resetForm = () => {
     setSpecie('');
@@ -106,8 +152,8 @@ export default function RecordPriceModal() {
       onBackButtonPress={hideModal}
       style={styles.modal}
       backdropOpacity={0.7}
-      animationIn="slideInUp"
-      animationOut="slideOutDown"
+      animationIn="zoomIn"
+      animationOut="zoomOut"
       avoidKeyboard
     >
       <KeyboardAvoidingView
@@ -123,7 +169,11 @@ export default function RecordPriceModal() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.form}>
+          <ScrollView 
+            showsVerticalScrollIndicator={false} 
+            contentContainerStyle={styles.form}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Specie Input */}
             <Text style={styles.label}>Specie</Text>
             <View style={styles.inputContainer}>
@@ -133,9 +183,35 @@ export default function RecordPriceModal() {
                 placeholder="Enter species name (e.g. Lawlaw)"
                 placeholderTextColor="#555"
                 value={specie}
-                onChangeText={setSpecie}
+                onChangeText={handleSpecieSearch}
               />
             </View>
+
+            {/* Suggestions Dropdown */}
+            {isSearching && (
+              <View style={styles.suggestionsList}>
+                {allSpecies.length === 0 ? (
+                  <View style={styles.suggestionItem}>
+                    <Text style={[styles.suggestionText, { opacity: 0.5 }]}>Library is empty. Add species first.</Text>
+                  </View>
+                ) : filteredSpecies.length > 0 ? (
+                  filteredSpecies.map((s, index) => (
+                    <TouchableOpacity 
+                      key={index} 
+                      style={styles.suggestionItem}
+                      onPress={() => selectSpecie(s.local_name)}
+                    >
+                      <Ionicons name="fish" size={16} color={THEME.colors.accent} />
+                      <Text style={styles.suggestionText}>{s.local_name}</Text>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View style={styles.suggestionItem}>
+                    <Text style={[styles.suggestionText, { opacity: 0.5 }]}>No matches found in library</Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Price Input */}
             <Text style={styles.label}>Price per Unit</Text>
@@ -244,14 +320,17 @@ export default function RecordPriceModal() {
 
 const styles = StyleSheet.create({
   modal: {
-    margin: 0,
-    justifyContent: 'flex-end',
+    margin: 20,
+    justifyContent: 'center',
   },
   container: {
     backgroundColor: THEME.colors.bgMain,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    maxHeight: '85%',
+    borderRadius: 28,
+    maxHeight: '90%',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
+    ...THEME.shadow.glow,
   },
   content: {
     padding: 24,
@@ -365,5 +444,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  suggestionsList: {
+    backgroundColor: '#0A2129',
+    borderRadius: 12,
+    marginTop: -8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
+    maxHeight: 200,
+    zIndex: 1000,
+    elevation: 5,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  suggestionText: {
+    color: '#FFF',
+    fontSize: 14,
+    marginLeft: 10,
   },
 });

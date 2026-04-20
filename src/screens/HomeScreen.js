@@ -16,6 +16,7 @@ import { supabase } from '../lib/supabase';
 import dayjs from 'dayjs';
 import Modal from 'react-native-modal';
 import { Calendar } from 'react-native-calendars';
+import AddSpeciesModal from '../components/AddSpeciesModal';
 
 const { width } = Dimensions.get('window');
 
@@ -26,6 +27,7 @@ export default function HomeScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('today'); // 'today', '7d', 'custom'
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
+  const [isAddSpeciesVisible, setIsAddSpeciesVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
 
   useEffect(() => {
@@ -51,8 +53,11 @@ export default function HomeScreen({ navigation }) {
   const fetchData = async (currentFrame = timeframe, targetDate = selectedDate) => {
     try {
       const today = dayjs().format('YYYY-MM-DD');
-      const speciesRef = supabase.from('species').select('*').order('name');
+      const speciesRef = supabase.from('species').select('*').order('local_name');
       const recentTransRef = supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(6);
+      const latestPricesRef = supabase.from('transactions')
+        .select('species_name, price_per_unit, created_at')
+        .order('created_at', { ascending: false });
 
       let trendQuery = supabase.from('transactions')
         .select('manual_date, manual_time, price_per_unit')
@@ -68,16 +73,31 @@ export default function HomeScreen({ navigation }) {
         trendQuery = trendQuery.eq('manual_date', targetDate);
       }
 
-      const [speciesRes, transRes, trendRes] = await Promise.all([
+      const [speciesRes, transRes, trendRes, pricesRes] = await Promise.all([
         speciesRef,
         recentTransRef,
-        trendQuery
+        trendQuery,
+        latestPricesRef
       ]);
 
       if (speciesRes.error) throw speciesRes.error;
       if (transRes.error) throw transRes.error;
 
-      setSpecies(speciesRes.data || []);
+      // Map latest prices to species
+      const priceMap = (pricesRes.data || []).reduce((acc, curr) => {
+        if (!acc[curr.species_name.toLowerCase()]) {
+          acc[curr.species_name.toLowerCase()] = curr.price_per_unit;
+        }
+        return acc;
+      }, {});
+
+      const enrichedSpecies = (speciesRes.data || []).map(s => ({
+        ...s,
+        current_price: priceMap[s.local_name.toLowerCase()] || 0,
+        change_percent: '+0.0' // Placeholder for now
+      }));
+
+      setSpecies(enrichedSpecies);
       setTransactions(transRes.data || []);
 
       // Process Trend Data
@@ -130,7 +150,7 @@ export default function HomeScreen({ navigation }) {
     fetchData();
   }, [timeframe, selectedDate]);
 
-  const highlightedFish = species.find(s => s.name.toLowerCase().includes('lawlaw')) || species[0];
+  const highlightedFish = species.find(s => s.local_name.toLowerCase().includes('lawlaw')) || species[0];
 
   const chartConfig = {
     backgroundGradientFrom: THEME.colors.bgCard,
@@ -186,7 +206,11 @@ export default function HomeScreen({ navigation }) {
 
         {/* Quick Actions Row */}
         <View style={styles.quickActions}>
-          <QuickActionItem icon="analytics-outline" label="Insights" />
+          <QuickActionItem 
+            icon="fish" 
+            label="Specie" 
+            onPress={() => setIsAddSpeciesVisible(true)}
+          />
           <QuickActionItem icon="map-outline" label="Piers" />
           <QuickActionItem icon="calendar-outline" label="Forecast" />
           <QuickActionItem icon="boat-outline" label="Arriving" />
@@ -206,7 +230,7 @@ export default function HomeScreen({ navigation }) {
               </View>
               <View style={styles.featuredDetails}>
                 <Text style={styles.tagline}>TRENDING SPECIE</Text>
-                <Text style={styles.fishName}>{highlightedFish.name}</Text>
+                <Text style={styles.fishName}>{highlightedFish.local_name}</Text>
                 <View style={styles.priceContainer}>
                   <Text style={styles.priceValue}>₱{highlightedFish.current_price?.toLocaleString() || '0'}</Text>
                   <Text style={styles.priceUnit}> {highlightedFish.unit || '/ Krate'}</Text>
@@ -240,12 +264,12 @@ export default function HomeScreen({ navigation }) {
               {species.map(item => (
                 <SpeciesCard
                   key={item.id}
-                  name={item.name}
+                  name={item.local_name}
                   price={item.current_price?.toLocaleString()}
                   change={`${item.change_percent || 0}%`}
-                  icon={item.icon || "fish-outline"}
-                  isNeg={item.change_percent < 0}
-                  unit={item.unit}
+                  icon="fish-outline"
+                  isNeg={false}
+                  unit="Tub"
                 />
               ))}
             </ScrollView>
@@ -349,6 +373,15 @@ export default function HomeScreen({ navigation }) {
           />
         </View>
       </Modal>
+
+      {/* Add Species Modal */}
+      <AddSpeciesModal 
+        isVisible={isAddSpeciesVisible} 
+        onClose={() => {
+          setIsAddSpeciesVisible(false);
+          fetchData(); // Refresh list after adding
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -389,7 +422,7 @@ const MarketTicker = ({ species }) => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tickerContent}>
       {species.map(s => (
         <View key={s.id} style={styles.tickerItem}>
-          <Text style={styles.tickerName}>{s.name}: </Text>
+          <Text style={styles.tickerName}>{s.local_name}: </Text>
           <Text style={styles.tickerPrice}>₱{s.current_price?.toLocaleString() || '0'}</Text>
           <Ionicons
             name={s.change_percent < 0 ? "caret-down" : "caret-up"}
@@ -403,8 +436,8 @@ const MarketTicker = ({ species }) => (
   </View>
 );
 
-const QuickActionItem = ({ icon, label }) => (
-  <TouchableOpacity style={styles.actionItem}>
+const QuickActionItem = ({ icon, label, onPress }) => (
+  <TouchableOpacity style={styles.actionItem} onPress={onPress}>
     <View style={styles.actionIcon}>
       <Ionicons name={icon} size={22} color={THEME.colors.textPrimary} />
     </View>
