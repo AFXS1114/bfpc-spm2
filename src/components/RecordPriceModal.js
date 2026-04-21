@@ -25,7 +25,7 @@ export default function RecordPriceModal() {
   const [specie, setSpecie] = useState('');
   const [price, setPrice] = useState('');
   const [volume, setVolume] = useState('1');
-  const [unit, setUnit] = useState('Tub'); 
+  const [unit, setUnit] = useState('Tub');
   const [date, setDate] = useState(new Date());
   const [time, setTime] = useState(new Date());
 
@@ -65,8 +65,8 @@ export default function RecordPriceModal() {
     if (text.length > 0) {
       // If library is empty, try one last refetch
       if (allSpecies.length === 0) loadSpecies();
-      
-      const filtered = allSpecies.filter(s => 
+
+      const filtered = allSpecies.filter(s =>
         s.local_name && s.local_name.toLowerCase().includes(text.toLowerCase())
       );
       setFilteredSpecies(filtered);
@@ -169,8 +169,8 @@ export default function RecordPriceModal() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView 
-            showsVerticalScrollIndicator={false} 
+          <ScrollView
+            showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.form}
             keyboardShouldPersistTaps="handled"
           >
@@ -196,8 +196,8 @@ export default function RecordPriceModal() {
                   </View>
                 ) : filteredSpecies.length > 0 ? (
                   filteredSpecies.map((s, index) => (
-                    <TouchableOpacity 
-                      key={index} 
+                    <TouchableOpacity
+                      key={index}
                       style={styles.suggestionItem}
                       onPress={() => selectSpecie(s.local_name)}
                     >
@@ -307,7 +307,7 @@ export default function RecordPriceModal() {
               ) : (
                 <>
                   <Ionicons name="checkmark-circle" size={22} color="#000" style={{ marginRight: 8 }} />
-                  <Text style={styles.saveButtonText}>RECORDS TRANSACTION</Text>
+                  <Text style={styles.saveButtonText}>SAVE PRICE</Text>
                 </>
               )}
             </TouchableOpacity>

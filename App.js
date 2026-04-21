@@ -9,7 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import HomeScreen from './src/screens/HomeScreen';
 import ReportsScreen from './src/screens/ReportsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-import InfoScreen from './src/screens/InfoScreen';
+import MarketScreen from './src/screens/MarketScreen';
 
 // Custom Tab Bar
 import CustomTabBar from './src/components/CustomTabBar';
@@ -34,7 +34,7 @@ export default function App() {
             }}
           >
             <Tab.Screen name="Home" component={HomeScreen} />
-            <Tab.Screen name="Market" component={InfoScreen} />
+            <Tab.Screen name="Market" component={MarketScreen} />
             <Tab.Screen name="Reports" component={ReportsScreen} />
             <Tab.Screen name="Settings" component={SettingsScreen} />
           </Tab.Navigator>

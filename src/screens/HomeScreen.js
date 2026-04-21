@@ -17,6 +17,7 @@ import dayjs from 'dayjs';
 import Modal from 'react-native-modal';
 import { Calendar } from 'react-native-calendars';
 import AddSpeciesModal from '../components/AddSpeciesModal';
+import SpecieLibraryModal from '../components/SpecieLibraryModal';
 
 const { width } = Dimensions.get('window');
 
@@ -28,6 +29,7 @@ export default function HomeScreen({ navigation }) {
   const [timeframe, setTimeframe] = useState('today'); // 'today', '7d', 'custom'
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
   const [isAddSpeciesVisible, setIsAddSpeciesVisible] = useState(false);
+  const [isSpecieLibraryVisible, setIsSpecieLibraryVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
 
   useEffect(() => {
@@ -206,12 +208,16 @@ export default function HomeScreen({ navigation }) {
 
         {/* Quick Actions Row */}
         <View style={styles.quickActions}>
-          <QuickActionItem 
-            icon="fish" 
-            label="Specie" 
+          <QuickActionItem
+            icon="fish"
+            label="Specie"
             onPress={() => setIsAddSpeciesVisible(true)}
           />
-          <QuickActionItem icon="map-outline" label="Piers" />
+          <QuickActionItem
+            icon="library-outline"
+            label="Specie Library"
+            onPress={() => setIsSpecieLibraryVisible(true)}
+          />
           <QuickActionItem icon="calendar-outline" label="Forecast" />
           <QuickActionItem icon="boat-outline" label="Arriving" />
         </View>
@@ -233,7 +239,7 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.fishName}>{highlightedFish.local_name}</Text>
                 <View style={styles.priceContainer}>
                   <Text style={styles.priceValue}>₱{highlightedFish.current_price?.toLocaleString() || '0'}</Text>
-                  <Text style={styles.priceUnit}> {highlightedFish.unit || '/ Krate'}</Text>
+                  <Text style={styles.priceUnit}> {highlightedFish.unit || '/ Tub'}</Text>
                 </View>
                 <View style={styles.statsRow}>
                   <View style={styles.statChip}>
@@ -375,12 +381,21 @@ export default function HomeScreen({ navigation }) {
       </Modal>
 
       {/* Add Species Modal */}
-      <AddSpeciesModal 
-        isVisible={isAddSpeciesVisible} 
+      <AddSpeciesModal
+        isVisible={isAddSpeciesVisible}
         onClose={() => {
           setIsAddSpeciesVisible(false);
           fetchData(); // Refresh list after adding
         }}
+      />
+
+      {/* Specie Library Modal */}
+      <SpecieLibraryModal 
+        isVisible={isSpecieLibraryVisible} 
+        onClose={() => {
+          setIsSpecieLibraryVisible(false);
+          fetchData();
+        }} 
       />
     </SafeAreaView>
   );
