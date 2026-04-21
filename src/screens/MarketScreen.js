@@ -99,7 +99,7 @@ export default function MarketScreen({ navigation }) {
 
         if (fishTrans.length > 0) {
           setChartData({
-            labels: fishTrans.map(t => t.manual_time.slice(0, 5)),
+            labels: fishTrans.map(t => dayjs(`${t.manual_date} ${t.manual_time}`).format('hh:mm A')),
             datasets: [{ 
               data: fishTrans.map(t => t.price_per_unit),
               color: (opacity = 1) => `rgba(47, 212, 198, ${opacity})`,
@@ -222,13 +222,13 @@ export default function MarketScreen({ navigation }) {
               {marketStats.topGainer.isNeg ? "Top Loser" : "Top Gainer"}
             </Text>
             <MiniCardRow label={marketStats.topGainer.name} val={marketStats.topGainer.change} isNeg={marketStats.topGainer.isNeg} />
-            <MiniCardRow label="Avg Price" val={`₱${marketStats.topGainer.price}`} />
+            <MiniCardRow label="Avg Price" val={`₱${Math.ceil(marketStats.topGainer.price)}`} />
           </View>
           
           <View style={[styles.miniCard, { borderLeftColor: THEME.colors.gold, borderLeftWidth: 3 }]}>
             <Text style={[styles.miniCardTitle, { color: THEME.colors.gold }]}>Market Leader</Text>
             <MiniCardRow label={marketStats.topVolume.name} val={`${marketStats.topVolume.volume} Tubs`} isGold />
-            <MiniCardRow label="Avg Price" val={`₱${marketStats.topVolume.price}`} isGold />
+            <MiniCardRow label="Avg Price" val={`₱${Math.ceil(marketStats.topVolume.price)}`} isGold />
           </View>
         </View>
 
@@ -248,7 +248,7 @@ export default function MarketScreen({ navigation }) {
               <TableRow 
                 key={item.id}
                 name={item.name} 
-                p1={`₱${Math.round(item.price)}`} 
+                p1={`₱${Math.ceil(item.price)}`} 
                 v={item.volume} 
                 p2={item.change} 
                 pos={!item.isNeg && item.price > 0} 

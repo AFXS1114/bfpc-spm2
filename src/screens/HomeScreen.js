@@ -58,7 +58,7 @@ export default function HomeScreen({ navigation }) {
       const speciesRef = supabase.from('species').select('*').order('local_name');
       const recentTransRef = supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(6);
       const latestPricesRef = supabase.from('transactions')
-        .select('species_name, price_per_unit, created_at')
+        .select('species_name, price_per_unit, created_at, manual_date, manual_time')
         .order('created_at', { ascending: false });
 
       let trendQuery = supabase.from('transactions')
@@ -88,16 +88,25 @@ export default function HomeScreen({ navigation }) {
       // Map latest prices to species
       const priceMap = (pricesRes.data || []).reduce((acc, curr) => {
         if (!acc[curr.species_name.toLowerCase()]) {
-          acc[curr.species_name.toLowerCase()] = curr.price_per_unit;
+          acc[curr.species_name.toLowerCase()] = {
+            price: curr.price_per_unit,
+            date: curr.manual_date,
+            time: curr.manual_time
+          };
         }
         return acc;
       }, {});
 
-      const enrichedSpecies = (speciesRes.data || []).map(s => ({
-        ...s,
-        current_price: priceMap[s.local_name.toLowerCase()] || 0,
-        change_percent: '+0.0' // Placeholder for now
-      }));
+      const enrichedSpecies = (speciesRes.data || []).map(s => {
+        const priceInfo = priceMap[s.local_name.toLowerCase()] || {};
+        return {
+          ...s,
+          current_price: priceInfo.price || 0,
+          price_date: priceInfo.date,
+          price_time: priceInfo.time,
+          change_percent: '+0.0' // Placeholder for now
+        };
+      });
 
       setSpecies(enrichedSpecies);
       setTransactions(transRes.data || []);
@@ -152,7 +161,13 @@ export default function HomeScreen({ navigation }) {
     fetchData();
   }, [timeframe, selectedDate]);
 
-  const highlightedFish = species.find(s => s.local_name.toLowerCase().includes('lawlaw')) || species[0];
+  const highlightedFish = [...species].sort((a, b) => {
+    if (!a.price_date || !a.price_time) return 1;
+    if (!b.price_date || !b.price_time) return -1;
+    const timeA = new Date(`${a.price_date}T${a.price_time}`);
+    const timeB = new Date(`${b.price_date}T${b.price_time}`);
+    return timeB - timeA;
+  })[0] || species[0];
 
   const chartConfig = {
     backgroundGradientFrom: THEME.colors.bgCard,
@@ -235,8 +250,13 @@ export default function HomeScreen({ navigation }) {
                 </View>
               </View>
               <View style={styles.featuredDetails}>
-                <Text style={styles.tagline}>TRENDING SPECIE</Text>
-                <Text style={styles.fishName}>{highlightedFish.local_name}</Text>
+                <Text style={styles.tagline}>LATEST PRICE RECORDED</Text>
+                <Text style={styles.fishName}>{highlightedFish.local_name} (Current Price)</Text>
+                {highlightedFish.price_date && (
+                  <Text style={styles.priceTimestamp}>
+                    {dayjs(highlightedFish.price_date).format('MMM DD')} / {dayjs(`2000-01-01 ${highlightedFish.price_time}`).format('hh:mm A')}
+                  </Text>
+                )}
                 <View style={styles.priceContainer}>
                   <Text style={styles.priceValue}>₱{highlightedFish.current_price?.toLocaleString() || '0'}</Text>
                   <Text style={styles.priceUnit}> {highlightedFish.unit || '/ Tub'}</Text>
@@ -390,12 +410,12 @@ export default function HomeScreen({ navigation }) {
       />
 
       {/* Specie Library Modal */}
-      <SpecieLibraryModal 
-        isVisible={isSpecieLibraryVisible} 
+      <SpecieLibraryModal
+        isVisible={isSpecieLibraryVisible}
         onClose={() => {
           setIsSpecieLibraryVisible(false);
           fetchData();
-        }} 
+        }}
       />
     </SafeAreaView>
   );
@@ -740,7 +760,15 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 22,
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  priceTimestamp: {
+    color: THEME.colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   priceContainer: {
     flexDirection: 'row',

@@ -272,7 +272,7 @@ export default function RecordPriceModal() {
                 <TouchableOpacity style={styles.pickerTrigger} onPress={() => setShowTimePicker(true)}>
                   <Ionicons name="time-outline" size={20} color={THEME.colors.accent} />
                   <Text style={styles.pickerValue}>
-                    {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -293,6 +293,7 @@ export default function RecordPriceModal() {
                 mode="time"
                 display="default"
                 onChange={onTimeChange}
+                is24Hour={false}
               />
             )}
 

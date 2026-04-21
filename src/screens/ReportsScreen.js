@@ -145,7 +145,7 @@ export default function ReportsScreen() {
               transList.map((item) => (
                 <TransactionRow 
                   key={item.id}
-                  time={item.manual_time?.slice(0, 5) || '00:00'} 
+                  time={dayjs(`${item.manual_date} ${item.manual_time}`).format('hh:mm A')} 
                   specie={item.species_name} 
                   volume={item.volume.toLocaleString()} 
                   price={`₱${item.price_per_unit.toLocaleString()}`} 
