@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  TouchableOpacity, 
-  ScrollView, 
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  ScrollView,
   Dimensions,
   ActivityIndicator,
-  RefreshControl 
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { THEME } from '../theme/theme';
@@ -54,12 +54,12 @@ export default function MarketScreen({ navigation }) {
         const sToday = todayTrans.filter(t => t.species_name.toLowerCase() === s.local_name.toLowerCase());
         const sYest = yesterdayTrans.filter(t => t.species_name.toLowerCase() === s.local_name.toLowerCase());
 
-        const avgToday = sToday.length > 0 
-          ? sToday.reduce((acc, curr) => acc + curr.price_per_unit, 0) / sToday.length 
+        const avgToday = sToday.length > 0
+          ? sToday.reduce((acc, curr) => acc + curr.price_per_unit, 0) / sToday.length
           : 0;
-        
-        const avgYest = sYest.length > 0 
-          ? sYest.reduce((acc, curr) => acc + curr.price_per_unit, 0) / sYest.length 
+
+        const avgYest = sYest.length > 0
+          ? sYest.reduce((acc, curr) => acc + curr.price_per_unit, 0) / sYest.length
           : 0;
 
         const totalVol = sToday.reduce((acc, curr) => acc + curr.volume, 0);
@@ -100,7 +100,7 @@ export default function MarketScreen({ navigation }) {
         if (fishTrans.length > 0) {
           setChartData({
             labels: fishTrans.map(t => dayjs(`${t.manual_date} ${t.manual_time}`).format('hh:mm A')),
-            datasets: [{ 
+            datasets: [{
               data: fishTrans.map(t => t.price_per_unit),
               color: (opacity = 1) => `rgba(47, 212, 198, ${opacity})`,
               strokeWidth: 2
@@ -182,8 +182,8 @@ export default function MarketScreen({ navigation }) {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={THEME.colors.accent} />}
       >
@@ -200,7 +200,7 @@ export default function MarketScreen({ navigation }) {
           </View>
           <Text style={styles.chartSubtitle}>Real-time price trend based on arrivals</Text>
           {loading ? (
-             <ActivityIndicator color={THEME.colors.accent} style={{ height: 140 }} />
+            <ActivityIndicator color={THEME.colors.accent} style={{ height: 140 }} />
           ) : (
             <LineChart
               data={chartData}
@@ -224,7 +224,7 @@ export default function MarketScreen({ navigation }) {
             <MiniCardRow label={marketStats.topGainer.name} val={marketStats.topGainer.change} isNeg={marketStats.topGainer.isNeg} />
             <MiniCardRow label="Avg Price" val={`₱${Math.ceil(marketStats.topGainer.price)}`} />
           </View>
-          
+
           <View style={[styles.miniCard, { borderLeftColor: THEME.colors.gold, borderLeftWidth: 3 }]}>
             <Text style={[styles.miniCardTitle, { color: THEME.colors.gold }]}>Market Leader</Text>
             <MiniCardRow label={marketStats.topVolume.name} val={`${marketStats.topVolume.volume} Tubs`} isGold />
@@ -234,7 +234,7 @@ export default function MarketScreen({ navigation }) {
 
         {/* Table Section: Supply/Demand Index */}
         <View style={styles.tableCard}>
-          <Text style={styles.tableTitle}>Supply/Demand Index</Text>
+          <Text style={styles.tableTitle}>Top Species</Text>
           <View style={styles.tableHeader}>
             <Text style={styles.colHeader}>Specie</Text>
             <Text style={styles.colHeader}>Avg Price</Text>
@@ -245,14 +245,14 @@ export default function MarketScreen({ navigation }) {
             <ActivityIndicator color={THEME.colors.accent} style={{ padding: 20 }} />
           ) : marketStats.supplyIndex.length > 0 ? (
             marketStats.supplyIndex.map((item) => (
-              <TableRow 
+              <TableRow
                 key={item.id}
-                name={item.name} 
-                p1={`₱${Math.ceil(item.price)}`} 
-                v={item.volume} 
-                p2={item.change} 
-                pos={!item.isNeg && item.price > 0} 
-                neg={item.isNeg} 
+                name={item.name}
+                p1={`₱${Math.ceil(item.price)}`}
+                v={item.volume}
+                p2={item.change}
+                pos={!item.isNeg && item.price > 0}
+                neg={item.isNeg}
               />
             ))
           ) : (
@@ -270,7 +270,7 @@ const MiniCardRow = ({ label, val, isNeg, isGold }) => (
   <View style={styles.miniRow}>
     <Text style={styles.miniLabel}>{label}</Text>
     <Text style={[
-      styles.miniVal, 
+      styles.miniVal,
       isNeg && { color: THEME.colors.negative },
       isGold && { color: THEME.colors.gold },
       !isNeg && !isGold && { color: THEME.colors.positive }
@@ -283,9 +283,9 @@ const MiniCardRow = ({ label, val, isNeg, isGold }) => (
 const TableRow = ({ name, p1, v, p2, pos, neg }) => (
   <View style={styles.tableRow}>
     <Text style={styles.colText}>{name}</Text>
-    <Text style={[styles.colText, pos && {color: THEME.colors.positive}, neg && {color: THEME.colors.negative}]}>{p1}</Text>
-    <Text style={[styles.colText, {color: THEME.colors.gold}]}>{v}</Text>
-    <Text style={[styles.colText, {color: THEME.colors.gold}]}>{p2}</Text>
+    <Text style={[styles.colText, pos && { color: THEME.colors.positive }, neg && { color: THEME.colors.negative }]}>{p1}</Text>
+    <Text style={[styles.colText, { color: THEME.colors.gold }]}>{v}</Text>
+    <Text style={[styles.colText, { color: THEME.colors.gold }]}>{p2}</Text>
   </View>
 );
 

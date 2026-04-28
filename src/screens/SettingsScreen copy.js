@@ -17,11 +17,13 @@ export default function SettingsScreen({ navigation }) {
   const [showModal, setShowModal] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
+  const [startTime, setStartTime] = useState(new Date());
   const [reportData, setReportData] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const viewShotRef = useRef();
 
@@ -34,10 +36,15 @@ export default function SettingsScreen({ navigation }) {
     return `${h}:${minutes} ${ampm}`;
   };
 
+  const format12H = (date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  };
+
   const handleGenerate = async () => {
     setIsGenerating(true);
-    const dbStartDate = `${startDate.getFullYear()}-${(startDate.getMonth() + 1).toString().padStart(2, '0')}-${startDate.getDate().toString().padStart(2, '0')}`;
-    const dbEndDate = `${endDate.getFullYear()}-${(endDate.getMonth() + 1).toString().padStart(2, '0')}-${endDate.getDate().toString().padStart(2, '0')}`;
+    const dbStartDate = startDate.toISOString().split('T')[0];
+    const dbEndDate = endDate.toISOString().split('T')[0];
+    const dbStartTime = startTime.toTimeString().split(' ')[0];
 
     const { data, error } = await supabase
       .from('transactions')
@@ -45,6 +52,7 @@ export default function SettingsScreen({ navigation }) {
       .eq('species_name', 'Lawlaw')
       .gte('manual_date', dbStartDate)
       .lte('manual_date', dbEndDate)
+      .gte('manual_time', dbStartTime)
       .order('manual_date', { ascending: true });
 
     if (data && data.length > 0) {
@@ -107,6 +115,7 @@ export default function SettingsScreen({ navigation }) {
                 ))}
               </View>
 
+              {/* FOOTER FIX: Ensure width/height are strict and background covers */}
               <View style={styles.footerWrapper}>
                 <ImageBackground source={FISH_BG} style={styles.footerBackground} resizeMode="cover">
                   <Image source={FOOTER_TEXT} style={styles.footerBranding} resizeMode="contain" />
@@ -120,7 +129,6 @@ export default function SettingsScreen({ navigation }) {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Report Criteria</Text>
-
               <Text style={styles.inputLabel}>Start Date</Text>
               <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowStartPicker(true)}>
                 <Text>{startDate.toDateString()}</Text>
@@ -132,6 +140,12 @@ export default function SettingsScreen({ navigation }) {
                 <Text>{endDate.toDateString()}</Text>
               </TouchableOpacity>
               {showEndPicker && <DateTimePicker value={endDate} mode="date" onChange={(e, d) => { setShowEndPicker(false); if (d) setEndDate(d) }} />}
+
+              <Text style={styles.inputLabel}>Start Time</Text>
+              <TouchableOpacity style={styles.pickerBtn} onPress={() => setShowTimePicker(true)}>
+                <Text>{format12H(startTime)}</Text>
+              </TouchableOpacity>
+              {showTimePicker && <DateTimePicker value={startTime} mode="time" is24Hour={false} onChange={(e, d) => { setShowTimePicker(false); if (d) setStartTime(d) }} />}
 
               <TouchableOpacity style={styles.generateBtn} onPress={handleGenerate} disabled={isGenerating}>
                 <Text style={styles.generateBtnText}>{isGenerating ? "GENERATING..." : "GENERATE REPORT"}</Text>

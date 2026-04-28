@@ -65,7 +65,6 @@ export default function HomeScreen({ navigation }) {
 
         return {
           ...s, // Carries the 'unit' from species table
-          displayUnit: s.unit || sTrans[0]?.unit || 'Unit',
           current_price: latestPrice,
           price_date: sTrans[0]?.manual_date,
           price_time: sTrans[0]?.manual_time,
@@ -199,10 +198,10 @@ export default function HomeScreen({ navigation }) {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={THEME.colors.accent} />}
       >
-        {/* <View style={styles.pulseContainer}>
+        <View style={styles.pulseContainer}>
           <SeaConditionWidget />
           <MarketTicker species={species} />
-        </View> */}
+        </View>
 
         <View style={styles.quickActions}>
           <QuickActionItem icon="fish" label="Specie" onPress={() => setIsAddSpeciesVisible(true)} />
@@ -228,8 +227,7 @@ export default function HomeScreen({ navigation }) {
                 )}
                 <View style={styles.priceContainer}>
                   <Text style={styles.priceValue}>₱{highlightedFish.current_price?.toLocaleString() || '0'}</Text>
-                  {/* <Text style={styles.priceUnit}> {highlightedFish.unit ? `/ ${highlightedFish.unit}` : '/ Unit'}</Text> */}
-                  <Text style={styles.priceUnit}> / {highlightedFish.displayUnit}</Text>
+                  <Text style={styles.priceUnit}> {highlightedFish.unit ? `/ ${highlightedFish.unit}` : '/ Unit'}</Text>
                 </View>
                 <View style={styles.statsRow}>
                   <View style={[styles.statChip, { backgroundColor: highlightedFish.isPositive ? 'rgba(75, 174, 79, 0.1)' : 'rgba(244, 67, 54, 0.1)' }]}>
@@ -242,7 +240,7 @@ export default function HomeScreen({ navigation }) {
                       {highlightedFish.change_percent}%
                     </Text>
                   </View>
-                  <Text style={styles.statLabel}>Today's Gain</Text>
+                  <Text style={styles.statLabel}>Since last trade</Text>
                 </View>
               </View>
             </View>
@@ -278,43 +276,6 @@ export default function HomeScreen({ navigation }) {
           ))}
         </View>
       </ScrollView>
-
-      {/* Calendar Modal */}
-      <Modal
-        isVisible={isCalendarVisible}
-        onBackdropPress={() => setIsCalendarVisible(false)}
-        style={styles.modal}
-      >
-        <View style={styles.calendarContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Date </Text>
-            <TouchableOpacity onPress={() => setIsCalendarVisible(false)}>
-              <Ionicons name="close" size={24} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-          <Calendar
-            theme={{
-              calendarBackground: THEME.colors.bgMain,
-              textSectionTitleColor: THEME.colors.accent,
-              selectedDayBackgroundColor: THEME.colors.accent,
-              selectedDayTextColor: '#000',
-              todayTextColor: THEME.colors.gold,
-              dayTextColor: '#FFF',
-              textDisabledColor: 'rgba(255,255,255,0.2)',
-              monthTextColor: '#FFF',
-              arrowColor: THEME.colors.accent,
-            }}
-            onDayPress={(day) => {
-              setSelectedDate(day.dateString);
-              setTimeframe('custom');
-              setIsCalendarVisible(false);
-            }}
-            markedDates={{
-              [selectedDate]: { selected: true, disableTouchEvent: true }
-            }}
-          />
-        </View>
-      </Modal>
 
       {/* Notifications Modal */}
       <Modal isVisible={isNotificationVisible} onBackdropPress={() => setIsNotificationVisible(false)} style={styles.modal}>
@@ -355,18 +316,18 @@ const TradeRow = ({ date, time, item, price, qty }) => (
   </View>
 );
 
-// const SeaConditionWidget = () => (
-//   <View style={styles.seaWidget}>
-//     <View style={styles.seaMain}>
-//       <View style={styles.seaCondition}>
-//         <Ionicons name="sunny" size={24} color={THEME.colors.gold} />
-//         <View style={{ marginLeft: 10 }}><Text style={styles.seaStatus}>Optimal</Text><Text style={styles.seaLabel}>Sea State</Text></View>
-//       </View>
-//       <View style={styles.divider} /><View style={styles.seaDetail}><Text style={styles.seaValue}>0.5m</Text><Text style={styles.seaLabelSmall}>Waves</Text></View>
-//       <View style={styles.seaDetail}><Text style={styles.seaValue}>8kts</Text><Text style={styles.seaLabelSmall}>Wind</Text></View>
-//     </View>
-//   </View>
-// );
+const SeaConditionWidget = () => (
+  <View style={styles.seaWidget}>
+    <View style={styles.seaMain}>
+      <View style={styles.seaCondition}>
+        <Ionicons name="sunny" size={24} color={THEME.colors.gold} />
+        <View style={{ marginLeft: 10 }}><Text style={styles.seaStatus}>Optimal</Text><Text style={styles.seaLabel}>Sea State</Text></View>
+      </View>
+      <View style={styles.divider} /><View style={styles.seaDetail}><Text style={styles.seaValue}>0.5m</Text><Text style={styles.seaLabelSmall}>Waves</Text></View>
+      <View style={styles.seaDetail}><Text style={styles.seaValue}>8kts</Text><Text style={styles.seaLabelSmall}>Wind</Text></View>
+    </View>
+  </View>
+);
 
 const MarketTicker = ({ species }) => (
   <View style={styles.tickerContainer}>
@@ -400,7 +361,7 @@ const styles = StyleSheet.create({
   pulseContainer: { marginHorizontal: 16, marginTop: 10, gap: 12 },
   seaWidget: { backgroundColor: THEME.colors.bgCard, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: 'rgba(47, 212, 198, 0.1)' },
   seaMain: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  // seaCondition: { flexDirection: 'row', alignItems: 'center', flex: 1.5 },
+  seaCondition: { flexDirection: 'row', alignItems: 'center', flex: 1.5 },
   seaStatus: { color: '#FFF', fontSize: 15, fontWeight: '700' },
   seaLabel: { color: THEME.colors.textSecondary, fontSize: 11 },
   divider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.08)', marginHorizontal: 12 },
@@ -466,12 +427,5 @@ const styles = StyleSheet.create({
   notifIcon: { width: 40, height: 40, backgroundColor: 'rgba(47, 212, 198, 0.1)', borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   notifText: { color: '#FFF', fontSize: 14 },
   notifSub: { color: THEME.colors.textSecondary, fontSize: 12, marginTop: 2 },
-  calendarContainer: {
-    backgroundColor: THEME.colors.bgMain,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    paddingBottom: 40
-  },
   notifPrice: { color: THEME.colors.gold, fontSize: 16, fontWeight: '700' }
 });

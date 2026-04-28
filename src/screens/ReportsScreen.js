@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  TouchableOpacity, 
-  ScrollView, 
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  ScrollView,
   Dimensions,
-  ActivityIndicator 
+  ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { THEME } from '../theme/theme';
@@ -23,9 +23,9 @@ export default function ReportsScreen() {
   const [summaries, setSummaries] = useState({
     speciesCount: 0,
     totalVolume: 0,
-    totalRevenue: 0,
+    averagePrice: 0,
     volChange: 'new',
-    revChange: 'new',
+    priceChange: 'new',
   });
   const [loading, setLoading] = useState(true);
 
@@ -37,7 +37,7 @@ export default function ReportsScreen() {
 
       const [dayRes, prevDayRes, specRes] = await Promise.all([
         supabase.from('transactions').select('*').eq('manual_date', dayStr).order('manual_time', { ascending: false }),
-        supabase.from('transactions').select('volume, price_per_unit').eq('manual_date', prevDayStr),
+        supabase.from('transactions').select('price_per_unit').eq('manual_date', prevDayStr),
         supabase.from('species').select('id', { count: 'exact' })
       ]);
 
@@ -46,12 +46,17 @@ export default function ReportsScreen() {
       const dayTrans = dayRes.data || [];
       const prevTrans = prevDayRes.data || [];
 
-      // Calculate Metrics
-      const totalRev = dayTrans.reduce((acc, curr) => acc + (curr.price_per_unit * curr.volume), 0);
+      // Calculate Metrics for Current Day
       const totalVol = dayTrans.reduce((acc, curr) => acc + curr.volume, 0);
+      const avgPrice = dayTrans.length > 0
+        ? dayTrans.reduce((acc, curr) => acc + curr.price_per_unit, 0) / dayTrans.length
+        : 0;
 
-      const prevRev = prevTrans.reduce((acc, curr) => acc + (curr.price_per_unit * curr.volume), 0);
+      // Calculate Metrics for Previous Day (for comparison)
       const prevVol = prevTrans.reduce((acc, curr) => acc + curr.volume, 0);
+      const prevAvgPrice = prevTrans.length > 0
+        ? prevTrans.reduce((acc, curr) => acc + curr.price_per_unit, 0) / prevTrans.length
+        : 0;
 
       // Percentage Calculations
       const calcChange = (current, previous) => {
@@ -63,9 +68,9 @@ export default function ReportsScreen() {
       setSummaries({
         speciesCount: specRes.count || 0,
         totalVolume: totalVol,
-        totalRevenue: totalRev,
+        averagePrice: avgPrice,
         volChange: calcChange(totalVol, prevVol),
-        revChange: calcChange(totalRev, prevRev),
+        priceChange: calcChange(avgPrice, prevAvgPrice),
       });
 
       setTransList(dayTrans);
@@ -98,32 +103,32 @@ export default function ReportsScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        
+
         <View style={styles.titleContainer}>
           <Text style={styles.mainTitle}>{dayjs(selectedDate).format('MMMM D, YYYY')}</Text>
           <Text style={styles.subTitle}>Summary for selected date</Text>
         </View>
 
         <View style={styles.summaryRow}>
-          <SummaryCard 
-            label="Species" 
-            value={summaries.speciesCount} 
-            change="" 
-            type="positive" 
+          <SummaryCard
+            label="Species"
+            value={summaries.speciesCount}
+            change=""
+            type="positive"
             borderColor="rgba(47, 212, 198, 0.4)"
             icon="fish"
           />
-          <SummaryCard 
-            label="Volume" 
-            value={summaries.totalVolume.toLocaleString()} 
-            change={summaries.volChange} 
-            type={summaries.volChange.includes('-') ? 'negative' : 'positive'} 
+          <SummaryCard
+            label="Volume"
+            value={summaries.totalVolume.toLocaleString()}
+            change={summaries.volChange}
+            type={summaries.volChange.includes('-') ? 'negative' : 'positive'}
           />
-          <SummaryCard 
-            label="Revenue" 
-            value={`₱${summaries.totalRevenue.toLocaleString()}`} 
-            change={summaries.revChange} 
-            type={summaries.revChange.includes('-') ? 'negative' : 'positive'} 
+          <SummaryCard
+            label="Avg Price"
+            value={`₱${summaries.averagePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            change={summaries.priceChange}
+            type={summaries.priceChange.includes('-') ? 'negative' : 'positive'}
           />
         </View>
 
@@ -136,20 +141,18 @@ export default function ReportsScreen() {
             <View style={styles.tableHeader}>
               <Text style={[styles.colHeader, { flex: 1.5 }]}>Time</Text>
               <Text style={[styles.colHeader, { flex: 1.5 }]}>Species</Text>
-              <Text style={styles.colHeader}>Vol</Text>
+              <Text style={[styles.colHeader, { flex: 1.5 }]}>Unit</Text>
               <Text style={[styles.colHeader, { flex: 1.5 }]}>Price</Text>
-              <Text style={styles.colHeader}>Total</Text>
             </View>
 
             {transList.length > 0 ? (
               transList.map((item) => (
-                <TransactionRow 
+                <TransactionRow
                   key={item.id}
-                  time={dayjs(`${item.manual_date} ${item.manual_time}`).format('hh:mm A')} 
-                  specie={item.species_name} 
-                  volume={item.volume.toLocaleString()} 
-                  price={`₱${item.price_per_unit.toLocaleString()}`} 
-                  total={`₱${(item.price_per_unit * item.volume).toLocaleString()}`} 
+                  time={dayjs(`${item.manual_date} ${item.manual_time}`).format('hh:mm A')}
+                  specie={item.species_name}
+                  unit={item.unit.toLocaleString()}
+                  price={`₱${item.price_per_unit.toLocaleString()}`}
                 />
               ))
             ) : (
@@ -192,11 +195,10 @@ export default function ReportsScreen() {
           />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
 
-// Sub-components
 const SummaryCard = ({ label, value, change, type, borderColor, icon }) => (
   <View style={[styles.summaryCard, borderColor && { borderColor }]}>
     <View style={styles.summaryCardHeader}>
@@ -209,18 +211,14 @@ const SummaryCard = ({ label, value, change, type, borderColor, icon }) => (
   </View>
 );
 
-const TransactionRow = ({ time, specie, volume, price, total }) => (
+const TransactionRow = ({ time, specie, unit, price }) => (
   <View style={styles.tableRow}>
     <Text style={[styles.cellText, { flex: 1.5 }]}>{time}</Text>
     <Text style={[styles.cellText, { flex: 1.5 }]}>{specie}</Text>
-    <Text style={styles.cellText}>{volume}</Text>
+    <Text style={[styles.cellText, { flex: 1.5 }]}>{unit}</Text>
     <Text style={[styles.cellText, { flex: 1.5, fontWeight: '700' }]}>{price}</Text>
-    <Text style={styles.cellText}>{total}</Text>
   </View>
 );
-
-
-// Sub-components
 
 const styles = StyleSheet.create({
   container: {
@@ -337,20 +335,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.03)',
   },
-  calendarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
   calendarTitle: {
     color: '#FFF',
     fontSize: 18,
     fontWeight: '600',
-  },
-  activeDayText: {
-    color: THEME.colors.accent,
-    fontWeight: '700',
   },
   emptyText: {
     color: THEME.colors.textSecondary,
