@@ -20,6 +20,7 @@ import Modal from 'react-native-modal';
 import { Calendar } from 'react-native-calendars';
 import AddSpeciesModal from '../components/AddSpeciesModal';
 import SpecieLibraryModal from '../components/SpecieLibraryModal';
+import BagoongModal from '../components/BagoongModal';
 
 const { width } = Dimensions.get('window');
 
@@ -35,6 +36,10 @@ export default function HomeScreen({ navigation }) {
   const [isSpecieLibraryVisible, setIsSpecieLibraryVisible] = useState(false);
   const [isNotificationVisible, setIsNotificationVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [isCanningModalVisible, setIsCanningModalVisible] = useState(false);
+  const [isBagoongModalVisible, setIsBagoongModalVisible] = useState(false);
+  const [canningFactories, setCanningFactories] = useState([]);
+  const [canningLoading, setCanningLoading] = useState(false);
 
   const fetchData = async (currentFrame = timeframe, targetDate = selectedDate) => {
     try {
@@ -148,6 +153,53 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
+  const fetchCanningFactories = async () => {
+    setCanningLoading(true);
+    try {
+      const { data, error } = await supabase.from('canning_factories').select('*').order('factory_name');
+      if (error) throw error;
+      setCanningFactories(data || []);
+    } catch (err) {
+      console.error('Fetch canning error:', err);
+    } finally {
+      setCanningLoading(false);
+    }
+  };
+
+  const updateCanningStatus = async (id, newStatus, currentFactory) => {
+    try {
+      const today = dayjs().format('YYYY-MM-DD');
+
+      // Create a history entry for this status change
+      const historyEntry = {
+        status: newStatus,
+        date: today,
+        timestamp: new Date().toISOString()
+      };
+
+      // Append to existing history (or start a new array)
+      const existingHistory = currentFactory.history || [];
+      const updatedHistory = [...existingHistory, historyEntry];
+
+      const { error } = await supabase
+        .from('canning_factories')
+        .update({
+          status: newStatus,
+          status_date: today,
+          history: updatedHistory
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setCanningFactories(prev =>
+        prev.map(f => f.id === id ? { ...f, status: newStatus, status_date: today, history: updatedHistory } : f)
+      );
+    } catch (err) {
+      console.error('Update canning error:', err);
+    }
+  };
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchData();
@@ -207,8 +259,8 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.quickActions}>
           <QuickActionItem icon="fish" label="Specie" onPress={() => setIsAddSpeciesVisible(true)} />
           <QuickActionItem icon="library-outline" label="Specie Library" onPress={() => setIsSpecieLibraryVisible(true)} />
-          <QuickActionItem icon="calendar-outline" label="Forecast" />
-          <QuickActionItem icon="boat-outline" label="Arriving" />
+          <QuickActionItem icon="business-outline" label="Canning Status" onPress={() => { setIsCanningModalVisible(true); fetchCanningFactories(); }} />
+          <QuickActionItem icon="water-outline" label="Bagoong" onPress={() => setIsBagoongModalVisible(true)} />
         </View>
 
         {highlightedFish && (
@@ -220,7 +272,7 @@ export default function HomeScreen({ navigation }) {
               </View>
               <View style={styles.featuredDetails}>
                 <Text style={styles.tagline}>LATEST PRICE RECORDED</Text>
-                <Text style={styles.fishName}>{highlightedFish.local_name}</Text>
+                <Text style={styles.fishName}>{highlightedFish.local_name} (Current Price)</Text>
                 {highlightedFish.price_date && (
                   <Text style={styles.priceTimestamp}>
                     {dayjs(highlightedFish.price_date).format('MMM DD')} / {dayjs(`2000-01-01 ${highlightedFish.price_time}`).format('hh:mm A')}
@@ -340,8 +392,66 @@ export default function HomeScreen({ navigation }) {
         </View>
       </Modal>
 
+      {/* Canning Status Modal */}
+      <Modal isVisible={isCanningModalVisible} onBackdropPress={() => setIsCanningModalVisible(false)} style={styles.modal}>
+        <View style={styles.notificationContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Canning Status</Text>
+            <TouchableOpacity onPress={() => setIsCanningModalVisible(false)}>
+              <Ionicons name="close" size={24} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+          {canningLoading ? (
+            <ActivityIndicator size="large" color={THEME.colors.accent} />
+          ) : (
+            <FlatList
+              data={canningFactories}
+              keyExtractor={(item) => item.id.toString()}
+              ListEmptyComponent={
+                <View style={{ alignItems: 'center', marginTop: 40 }}>
+                  <Ionicons name="business-outline" size={48} color="rgba(255,255,255,0.2)" />
+                  <Text style={{ color: THEME.colors.textSecondary, marginTop: 12, fontSize: 14 }}>No canning factories found.</Text>
+                  <Text style={{ color: THEME.colors.textSecondary, fontSize: 12, marginTop: 4, textAlign: 'center' }}>Please add records in Supabase and ensure RLS policies allow SELECT operations.</Text>
+                </View>
+              }
+              renderItem={({ item }) => (
+                <View style={styles.notifItem}>
+                  <View style={[styles.notifIcon, { backgroundColor: item.status === 'Open' ? 'rgba(47, 212, 198, 0.1)' : 'rgba(244, 67, 54, 0.1)' }]}>
+                    <Ionicons name="business" size={20} color={item.status === 'Open' ? THEME.colors.accent : THEME.colors.negative} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.notifText}><Text style={{ fontWeight: '700' }}>{item.factory_name}</Text></Text>
+                    <Text style={styles.notifSub}>Status: {item.status} • {dayjs(item.status_date).format('MMM DD, YYYY')}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: item.status === 'Open' ? 'rgba(244, 67, 54, 0.1)' : 'rgba(47, 212, 198, 0.1)',
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: item.status === 'Open' ? 'rgba(244, 67, 54, 0.3)' : 'rgba(47, 212, 198, 0.3)'
+                    }}
+                    onPress={() => updateCanningStatus(item.id, item.status === 'Open' ? 'Closed' : 'Open', item)}
+                  >
+                    <Text style={{
+                      color: item.status === 'Open' ? THEME.colors.negative : THEME.colors.accent,
+                      fontSize: 12,
+                      fontWeight: '700'
+                    }}>
+                      {item.status === 'Open' ? 'Close' : 'Open'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            />
+          )}
+        </View>
+      </Modal>
+
       <AddSpeciesModal isVisible={isAddSpeciesVisible} onClose={() => { setIsAddSpeciesVisible(false); fetchData(); }} />
       <SpecieLibraryModal isVisible={isSpecieLibraryVisible} onClose={() => { setIsSpecieLibraryVisible(false); fetchData(); }} />
+      <BagoongModal isVisible={isBagoongModalVisible} onClose={() => setIsBagoongModalVisible(false)} />
     </SafeAreaView>
   );
 }

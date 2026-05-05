@@ -227,7 +227,7 @@ export default function MarketScreen({ navigation }) {
 
           <View style={[styles.miniCard, { borderLeftColor: THEME.colors.gold, borderLeftWidth: 3 }]}>
             <Text style={[styles.miniCardTitle, { color: THEME.colors.gold }]}>Market Leader</Text>
-            <MiniCardRow label={marketStats.topVolume.name} val={`${marketStats.topVolume.volume} Tubs`} isGold />
+            <MiniCardRow label={marketStats.topVolume.name} val={`${marketStats.topVolume.volume} Entries`} isGold />
             <MiniCardRow label="Avg Price" val={`₱${Math.ceil(marketStats.topVolume.price)}`} isGold />
           </View>
         </View>
@@ -238,7 +238,7 @@ export default function MarketScreen({ navigation }) {
           <View style={styles.tableHeader}>
             <Text style={styles.colHeader}>Specie</Text>
             <Text style={styles.colHeader}>Avg Price</Text>
-            <Text style={[styles.colHeader, { flex: 0.8 }]}>Volume</Text>
+            <Text style={[styles.colHeader, { flex: 0.8 }]}>Entry</Text>
             <Text style={styles.colHeader}>Trend</Text>
           </View>
           {loading ? (

@@ -15,6 +15,7 @@ import FOOTER_TEXT from '../../assets/footer-text.png';
 
 export default function SettingsScreen({ navigation }) {
   const [showModal, setShowModal] = useState(false);
+  const [reportType, setReportType] = useState('bantay');
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
   const [reportData, setReportData] = useState([]);
@@ -39,13 +40,29 @@ export default function SettingsScreen({ navigation }) {
     const dbStartDate = `${startDate.getFullYear()}-${(startDate.getMonth() + 1).toString().padStart(2, '0')}-${startDate.getDate().toString().padStart(2, '0')}`;
     const dbEndDate = `${endDate.getFullYear()}-${(endDate.getMonth() + 1).toString().padStart(2, '0')}-${endDate.getDate().toString().padStart(2, '0')}`;
 
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('manual_date, manual_time, price_per_unit')
-      .eq('species_name', 'Lawlaw')
-      .gte('manual_date', dbStartDate)
-      .lte('manual_date', dbEndDate)
-      .order('manual_date', { ascending: true });
+    let data = null;
+    let error = null;
+
+    if (reportType === 'bantay') {
+      const res = await supabase
+        .from('transactions')
+        .select('manual_date, manual_time, price_per_unit')
+        .eq('species_name', 'Lawlaw')
+        .gte('manual_date', dbStartDate)
+        .lte('manual_date', dbEndDate)
+        .order('manual_date', { ascending: true });
+      data = res.data;
+      error = res.error;
+    } else {
+      const res = await supabase
+        .from('rec_bagoong')
+        .select('manual_date, manual_time, price, remarks')
+        .gte('manual_date', dbStartDate)
+        .lte('manual_date', dbEndDate)
+        .order('manual_date', { ascending: true });
+      data = res.data;
+      error = res.error;
+    }
 
     if (data && data.length > 0) {
       setReportData(data);
@@ -72,8 +89,13 @@ export default function SettingsScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Settings</Text>
-        <TouchableOpacity style={styles.row} onPress={() => setShowModal(true)}>
+        <TouchableOpacity style={styles.row} onPress={() => { setReportType('bantay'); setShowModal(true); }}>
           <Text style={styles.rowLabel}>Generate Bantay Presyo Report</Text>
+          <Text style={styles.chevron}>📊</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.row, { marginTop: 12 }]} onPress={() => { setReportType('bagoong'); setShowModal(true); }}>
+          <Text style={styles.rowLabel}>Generate Bagoong Report</Text>
           <Text style={styles.chevron}>📊</Text>
         </TouchableOpacity>
 
@@ -85,7 +107,7 @@ export default function SettingsScreen({ navigation }) {
                 <View style={styles.headerTextContainer}>
                   <Text style={styles.headerPortName}>PFDA — Bulan Fish Port Complex</Text>
                   <View style={styles.titleWithTagRow}>
-                    <Text style={styles.headerMainTitle}>TAMBAN PRICE MONITORING</Text>
+                    <Text style={styles.headerMainTitle}>{reportType === 'bantay' ? "TAMBAN PRICE MONITORING" : "BAGOONG PRICE MONITORING"}</Text>
                     <Image source={PFDA_LOGO} style={styles.inlineTag} resizeMode="contain" />
                   </View>
                 </View>
@@ -96,13 +118,17 @@ export default function SettingsScreen({ navigation }) {
                   <Text style={styles.columnHeader}>DATE</Text>
                   <Text style={styles.columnHeader}>TIME</Text>
                   <Text style={styles.columnHeader}>PRICE</Text>
+                  {reportType === 'bagoong' && <Text style={styles.columnHeader}>REMARKS</Text>}
                 </View>
 
                 {reportData.map((item, index) => (
                   <View key={index} style={[styles.dataRow, index % 2 === 0 ? styles.zebra : null]}>
                     <Text style={styles.dataText}>{item.manual_date}</Text>
                     <Text style={styles.dataText}>{convertTo12H(item.manual_time)}</Text>
-                    <Text style={[styles.dataText, styles.priceBold]}>₱{item.price_per_unit}</Text>
+                    <Text style={[styles.dataText, styles.priceBold]}>₱{reportType === 'bantay' ? item.price_per_unit : item.price}</Text>
+                    {reportType === 'bagoong' && (
+                      <Text style={[styles.dataText, { fontSize: 18, color: '#666' }]}>{item.remarks || '-'}</Text>
+                    )}
                   </View>
                 ))}
               </View>

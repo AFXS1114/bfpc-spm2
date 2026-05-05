@@ -119,7 +119,7 @@ export default function ReportsScreen() {
             icon="fish"
           />
           <SummaryCard
-            label="Volume"
+            label="Entry"
             value={summaries.totalVolume.toLocaleString()}
             change={summaries.volChange}
             type={summaries.volChange.includes('-') ? 'negative' : 'positive'}
